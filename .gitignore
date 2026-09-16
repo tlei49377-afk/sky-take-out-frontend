@@ -1,0 +1,15 @@
+# Source map：体积大（约 10MB），部署时浏览器不会请求
+# 注意：本地请保留源目录中的 .map 文件，它们含有原始 Vue 源码
+*.map
+
+# Nginx 运行时产物
+logs/
+temp/
+*.pid
+
+# 编辑器 / 系统文件
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
