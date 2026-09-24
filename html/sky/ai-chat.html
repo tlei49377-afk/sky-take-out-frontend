@@ -26,6 +26,8 @@
 
     /* ---------- 顶部 ---------- */
     .chat-header {
+      position: relative;
+      z-index: 10;
       flex: 0 0 auto;
       display: flex;
       align-items: center;
@@ -59,6 +61,13 @@
       margin-left: 4px;
     }
 
+    /* ---------- 右上角操作区 ---------- */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     .btn-new {
       padding: 7px 15px;
       font-size: 13px;
@@ -68,9 +77,141 @@
       border-radius: 4px;
       cursor: pointer;
       transition: all .2s;
+      white-space: nowrap;
     }
 
     .btn-new:hover { background: #409eff; color: #fff; border-color: #409eff; }
+
+    /* 历史会话图标按钮 */
+    .history-wrap { position: relative; }
+
+    .btn-history {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      color: #606266;
+      background: #fff;
+      border: 1px solid #dcdfe6;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .btn-history:hover,
+    .history-wrap:hover .btn-history,
+    .history-wrap.open .btn-history {
+      color: #409eff;
+      border-color: #b3d8ff;
+      background: #ecf5ff;
+    }
+
+    .btn-history svg { display: block; }
+
+    /* 悬停下拉。外层只负责撑住鼠标移动路径（含 8px 透明间隙），
+       样式都挂在里面的 .history-card 上 —— 否则鼠标从按钮移到面板的路上
+       会短暂离开 hover 区域，面板一闪就没了。 */
+    .history-panel {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      padding-top: 8px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: opacity .18s, transform .18s, visibility .18s;
+      z-index: 50;
+    }
+
+    .history-wrap:hover .history-panel,
+    .history-wrap.open .history-panel {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .history-card {
+      width: 270px;
+      background: #fff;
+      border: 1px solid #ebeef5;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, .1);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #909399;
+      border-bottom: 1px solid #f2f3f5;
+      background: #fafafa;
+    }
+
+    .session-list {
+      max-height: 340px;
+      overflow-y: auto;
+      padding: 6px;
+    }
+
+    .session-list::-webkit-scrollbar { width: 6px; }
+    .session-list::-webkit-scrollbar-thumb { background: #dcdfe6; border-radius: 3px; }
+
+    .session-item {
+      position: relative;
+      padding: 9px 28px 9px 11px;
+      margin-bottom: 2px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .session-item:hover { background: #f0f2f5; }
+    .session-item.active { background: #ecf5ff; }
+
+    .session-item .t {
+      font-size: 13px;
+      color: #303133;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-item.active .t { color: #409eff; }
+
+    .session-item .time {
+      margin-top: 3px;
+      font-size: 11px;
+      color: #c0c4cc;
+    }
+
+    .session-del {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      line-height: 18px;
+      text-align: center;
+      font-size: 15px;
+      color: #c0c4cc;
+      border-radius: 4px;
+      opacity: 0;
+      transition: all .15s;
+    }
+
+    .session-item:hover .session-del { opacity: 1; }
+    .session-del:hover { color: #f56c6c; background: #fef0f0; }
+
+    .session-empty {
+      padding: 22px 12px;
+      text-align: center;
+      font-size: 12px;
+      color: #c0c4cc;
+      line-height: 1.8;
+    }
 
     /* ---------- 消息区 ---------- */
     .chat-body {
@@ -284,6 +425,10 @@
       color: #f56c6c;
       border: 1px solid #fde2e2;
     }
+
+    @media (max-width: 720px) {
+      .bubble, .msg-error { max-width: 88%; }
+    }
   </style>
 </head>
 <body>
@@ -293,30 +438,42 @@
       <div class="chat-title">
         <span class="dot"></span>
         AI 助手
-        <span class="sub">业务数据智能查询</span>
+        <span class="sub">菜品 / 分类 / 订单 智能助手</span>
       </div>
-      <button class="btn-new" id="btnNew">+ 新建会话</button>
+
+      <div class="header-actions">
+        <!-- 历史会话：悬停展开 -->
+        <div class="history-wrap" id="historyWrap">
+          <button class="btn-history" id="btnHistory" title="历史会话" aria-label="历史会话">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"></path>
+              <path d="M3 3v5h5"></path>
+              <path d="M12 7v5l3.5 2"></path>
+            </svg>
+          </button>
+
+          <div class="history-panel" id="historyPanel">
+            <div class="history-card">
+              <div class="panel-head">历史会话（最多保留 10 条）</div>
+              <div class="session-list" id="sessionList"></div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-new" id="btnNew">+ 新建会话</button>
+      </div>
     </div>
 
-    <div class="chat-body" id="chatBody">
-      <div class="welcome" id="welcome">
-        <h2>你好，我是智能外卖平台 AI 助手 👋</h2>
-        <p>我可以帮你查询菜品、分类和订单信息<br>试试问我下面的问题吧</p>
-        <div class="chips">
-          <div class="chip" data-q="查询鱼香肉丝的菜品信息">查询鱼香肉丝</div>
-          <div class="chip" data-q="查询所有热菜分类">查询热菜分类</div>
-          <div class="chip" data-q="查询订单号 123456 的订单">按订单号查订单</div>
-          <div class="chip" data-q="查询手机号 13800138000 的订单">按手机号查订单</div>
-        </div>
-      </div>
-    </div>
+    <div class="chat-body" id="chatBody"></div>
 
     <div class="chat-footer">
       <div class="input-wrap">
         <textarea id="input" rows="1" placeholder="输入你的问题，Enter 发送，Shift + Enter 换行"></textarea>
         <button class="btn-send" id="btnSend">发送</button>
       </div>
-      <div class="tip">AI 生成内容仅供参考，请核对业务数据</div>
+      <div class="tip">AI 生成内容仅供参考，请核对业务数据。删除、修改等操作执行前会让你确认。</div>
     </div>
 
   </div>
@@ -325,39 +482,29 @@
   (function () {
     'use strict';
 
-    var API = '/api/chat';                 // 经 nginx 转发到后端 /admin/chat
-    var MEMORY_KEY = 'sky_ai_memory_id';   // localStorage 中保存的会话 id
+    var API_CHAT     = '/api/chat';           // 流式对话，经 nginx 转发到后端 /admin/chat
+    var API_SESSIONS = '/api/chat/sessions';  // 会话列表
+    var API_SESSION  = '/api/chat/session';   // 新建 / 删除单个会话
 
-    var chatBody = document.getElementById('chatBody');
-    var welcome  = document.getElementById('welcome');
-    var input    = document.getElementById('input');
-    var btnSend  = document.getElementById('btnSend');
-    var btnNew   = document.getElementById('btnNew');
+    var CURRENT_KEY  = 'sky_ai_memory_id';    // localStorage 里保存「当前选中的会话 id」
 
-    var sending = false;
+    var chatBody    = document.getElementById('chatBody');
+    var sessionList = document.getElementById('sessionList');
+    var historyWrap = document.getElementById('historyWrap');
+    var btnHistory  = document.getElementById('btnHistory');
+    var input       = document.getElementById('input');
+    var btnSend     = document.getElementById('btnSend');
+    var btnNew      = document.getElementById('btnNew');
 
-    /* ---------- 工具函数 ---------- */
+    var sending     = false;
+    var currentId   = null;   // 当前会话 id
+    var welcomeEl   = null;   // 当前欢迎语节点，发消息时移除
+
+    /* ---------- 基础工具 ---------- */
 
     function getCookie(name) {
       var m = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
       return m ? decodeURIComponent(m[1]) : '';
-    }
-
-    // 每个浏览器会话一个 memoryId，用于后端区分对话上下文
-    function getMemoryId() {
-      var id = null;
-      try { id = localStorage.getItem(MEMORY_KEY); } catch (e) {}
-      if (!id) {
-        id = 'web_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
-        try { localStorage.setItem(MEMORY_KEY, id); } catch (e) {}
-      }
-      return id;
-    }
-
-    function resetMemoryId() {
-      var id = 'web_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
-      try { localStorage.setItem(MEMORY_KEY, id); } catch (e) {}
-      return id;
     }
 
     function escapeHtml(s) {
@@ -369,7 +516,7 @@
         .replace(/'/g, '&#39;');
     }
 
-    // 后端按 system.txt 约定返回 JSON，这里美化显示；不是 JSON 就原样输出
+    // 后端按 system.txt 约定返回自然语言；万一是 JSON 就美化显示，否则原样转义输出
     function renderContent(text) {
       var trimmed = text.trim();
       if (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[') {
@@ -381,20 +528,76 @@
       return escapeHtml(text);
     }
 
+    // 统一请求：带上 token，解开后端的 Result 包装
+    async function api(url, options) {
+      var token = getCookie('token');
+      if (!token) {
+        throw new Error('未检测到登录状态，请先在系统中登录');
+      }
+      options = options || {};
+      options.headers = options.headers || {};
+      options.headers['token'] = token;
+
+      var resp = await fetch(url, options);
+      if (resp.status === 401) {
+        throw new Error('登录状态已失效，请重新登录');
+      }
+      if (!resp.ok) {
+        throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
+      }
+      var body = await resp.json();
+      if (body.code !== 1) {
+        throw new Error(body.msg || '请求失败');
+      }
+      return body.data;
+    }
+
     function scrollToBottom() {
       chatBody.scrollTop = chatBody.scrollHeight;
     }
 
-    function hideWelcome() {
-      if (welcome && welcome.parentNode) {
-        welcome.parentNode.removeChild(welcome);
-        welcome = null;
-      }
+    function setSending(state) {
+      sending = state;
+      btnSend.disabled = state;
+      btnSend.textContent = state ? '回复中' : '发送';
     }
 
     /* ---------- 消息渲染 ---------- */
 
-    function addMessage(role, html) {
+    function hideWelcome() {
+      if (welcomeEl && welcomeEl.parentNode) {
+        welcomeEl.parentNode.removeChild(welcomeEl);
+      }
+      welcomeEl = null;
+    }
+
+    function showWelcome(html) {
+      hideWelcome();
+      var box = document.createElement('div');
+      box.className = 'welcome';
+      box.innerHTML = html;
+      chatBody.appendChild(box);
+      welcomeEl = box;
+      return box;
+    }
+
+    var DEFAULT_WELCOME =
+      '<h2>你好，我是智能外卖平台 AI 助手 👋</h2>' +
+      '<p>我可以帮你查询菜品、分类和订单，也能新增、修改、删除菜品和上下架<br>' +
+      '涉及增删改的操作，我会先跟你确认再执行<br>试试问我下面的问题吧</p>' +
+      '<div class="chips">' +
+        '<div class="chip" data-q="查询鱼香肉丝的菜品信息">查询鱼香肉丝</div>' +
+        '<div class="chip" data-q="查询所有菜品分类">查询菜品分类</div>' +
+        '<div class="chip" data-q="查询所有停售的菜品">查询停售菜品</div>' +
+        '<div class="chip" data-q="查询订单号 123456 的订单">按订单号查订单</div>' +
+      '</div>';
+
+    function clearBody() {
+      chatBody.innerHTML = '';
+      welcomeEl = null;
+    }
+
+    function addMessage(role, content, asHtml) {
       hideWelcome();
 
       var msg = document.createElement('div');
@@ -406,7 +609,11 @@
 
       var bubble = document.createElement('div');
       bubble.className = 'bubble';
-      bubble.innerHTML = html;
+      if (asHtml) {
+        bubble.innerHTML = content;
+      } else {
+        bubble.textContent = content;
+      }
 
       msg.appendChild(avatar);
       msg.appendChild(bubble);
@@ -434,13 +641,183 @@
       scrollToBottom();
     }
 
-    /* ---------- 发送逻辑 ---------- */
+    /* ---------- 历史会话下拉 ---------- */
 
-    function setSending(state) {
-      sending = state;
-      btnSend.disabled = state;
-      btnSend.textContent = state ? '回复中' : '发送';
+    function openPanel()  { historyWrap.classList.add('open'); }
+    function closePanel() { historyWrap.classList.remove('open'); }
+
+    function formatTime(ts) {
+      if (!ts) return '';
+      var d = new Date(ts);
+      var now = new Date();
+      var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+      var hm = pad(d.getHours()) + ':' + pad(d.getMinutes());
+      if (d.toDateString() === now.toDateString()) return hm;
+      if (d.getFullYear() === now.getFullYear()) {
+        return (d.getMonth() + 1) + '-' + d.getDate() + ' ' + hm;
+      }
+      return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
     }
+
+    function markActive() {
+      Array.prototype.forEach.call(
+        sessionList.querySelectorAll('.session-item'),
+        function (el) {
+          el.classList.toggle('active', el.getAttribute('data-id') === currentId);
+        }
+      );
+    }
+
+    function renderSessions(sessions) {
+      sessionList.innerHTML = '';
+
+      if (!sessions || !sessions.length) {
+        var empty = document.createElement('div');
+        empty.className = 'session-empty';
+        empty.textContent = '暂无历史会话，发送第一条消息后就会出现在这里';
+        sessionList.appendChild(empty);
+        return;
+      }
+
+      sessions.forEach(function (s) {
+        var item = document.createElement('div');
+        item.className = 'session-item';
+        item.setAttribute('data-id', s.memoryId);
+
+        var title = document.createElement('div');
+        title.className = 't';
+        // 标题来自用户输入，必须用 textContent，避免 HTML 注入
+        title.textContent = s.title || '新会话';
+        title.title = s.title || '新会话';
+
+        var time = document.createElement('div');
+        time.className = 'time';
+        time.textContent = formatTime(s.lastActiveTime);
+
+        var del = document.createElement('span');
+        del.className = 'session-del';
+        del.textContent = '×';
+        del.title = '删除该会话';
+        del.addEventListener('click', function (e) {
+          e.stopPropagation();
+          removeSession(s.memoryId, s.title || '新会话');
+        });
+
+        item.appendChild(title);
+        item.appendChild(time);
+        item.appendChild(del);
+        item.addEventListener('click', function () { selectSession(s.memoryId); });
+
+        sessionList.appendChild(item);
+      });
+
+      markActive();
+    }
+
+    async function loadSessions() {
+      try {
+        var sessions = await api(API_SESSIONS);
+        renderSessions(sessions);
+        return sessions || [];
+      } catch (err) {
+        renderSessions([]);
+        return [];
+      }
+    }
+
+    /* ---------- 会话切换 ---------- */
+
+    function setCurrentId(id) {
+      currentId = id;
+      try {
+        if (id) {
+          localStorage.setItem(CURRENT_KEY, id);
+        } else {
+          localStorage.removeItem(CURRENT_KEY);
+        }
+      } catch (e) { /* localStorage 不可用时忽略 */ }
+      markActive();
+    }
+
+    async function selectSession(memoryId) {
+      if (sending || memoryId === currentId) {
+        closePanel();
+        return;
+      }
+
+      setCurrentId(memoryId);
+      closePanel();
+      clearBody();
+
+      var loading = addMessage('ai', '<div class="thinking"><span></span><span></span><span></span></div>', true);
+
+      try {
+        var messages = await api(API_SESSION + '/' + encodeURIComponent(memoryId) + '/messages');
+
+        // 期间用户可能又切换了会话，丢弃这次的结果
+        if (currentId !== memoryId) return;
+
+        clearBody();
+
+        if (!messages || !messages.length) {
+          showWelcome('<h2>这个会话还没有内容</h2><p>直接提问即可继续这个会话</p>');
+          return;
+        }
+
+        messages.forEach(function (m) {
+          addMessage(m.role === 'user' ? 'user' : 'ai', m.content, false);
+        });
+      } catch (err) {
+        if (loading && loading.parentNode) {
+          loading.parentNode.removeChild(loading);
+        }
+        addError('加载会话失败：' + (err && err.message ? err.message : err));
+      }
+    }
+
+    async function newSession() {
+      if (sending) return;
+      try {
+        var memoryId = await api(API_SESSION, { method: 'POST' });
+        setCurrentId(memoryId);
+      } catch (err) {
+        addError('新建会话失败：' + (err && err.message ? err.message : err));
+        return;
+      }
+      closePanel();
+      clearBody();
+      showWelcome('<h2>新会话已开始 ✨</h2>' +
+                  '<p>之前的对话上下文已切换，可以开始新的提问了</p>');
+      input.focus();
+    }
+
+    async function removeSession(memoryId, title) {
+      if (sending) return;
+      if (!window.confirm('确定删除会话「' + title + '」吗？\n删除后该会话的对话记录无法找回。')) {
+        return;
+      }
+      try {
+        await api(API_SESSION + '/' + encodeURIComponent(memoryId), { method: 'DELETE' });
+      } catch (err) {
+        addError('删除会话失败：' + (err && err.message ? err.message : err));
+        return;
+      }
+      // 删的是当前会话，就切到最新的一条；没有就开个新的
+      if (memoryId === currentId) {
+        setCurrentId(null);
+        clearBody();
+        var sessions = await loadSessions();
+        if (sessions.length) {
+          await selectSession(sessions[0].memoryId);
+        } else {
+          await newSession();
+        }
+      } else {
+        await loadSessions();
+      }
+    }
+
+    /* ---------- 发送逻辑 ---------- */
 
     async function send(question) {
       if (sending) return;
@@ -453,19 +830,30 @@
         return;
       }
 
-      addMessage('user', escapeHtml(question));
+      // 还没有会话就先向后端要一个
+      if (!currentId) {
+        try {
+          setCurrentId(await api(API_SESSION, { method: 'POST' }));
+        } catch (err) {
+          addError('新建会话失败：' + (err && err.message ? err.message : err));
+          return;
+        }
+      }
+
+      closePanel();
+      addMessage('user', question, false);
       input.value = '';
       input.style.height = 'auto';
       setSending(true);
 
       // AI 气泡 + 思考动画
-      var bubble = addMessage('ai', '<div class="thinking"><span></span><span></span><span></span></div>');
+      var bubble = addMessage('ai', '<div class="thinking"><span></span><span></span><span></span></div>', true);
       var answer = '';
       var firstChunk = true;
 
       try {
-        var url = API
-          + '?memoryId=' + encodeURIComponent(getMemoryId())
+        var url = API_CHAT
+          + '?memoryId=' + encodeURIComponent(currentId)
           + '&memory='   + encodeURIComponent(question);
 
         var resp = await fetch(url, {
@@ -506,15 +894,18 @@
       } catch (err) {
         if (firstChunk) {
           bubble.innerHTML = '';
-          bubble.appendChild(document.createTextNode(''));
         }
-        bubble.parentNode.removeChild(bubble);
+        if (bubble.parentNode) {
+          bubble.parentNode.removeChild(bubble);
+        }
         addError('请求失败：' + (err && err.message ? err.message : err) +
                  '\n请确认后端服务已启动。');
       } finally {
         setSending(false);
         scrollToBottom();
         input.focus();
+        // 第一条消息发完后，这个会话才出现在列表里（标题也在这时生成）
+        loadSessions();
       }
     }
 
@@ -535,26 +926,68 @@
       input.style.height = Math.min(input.scrollHeight, 120) + 'px';
     });
 
-    // 快捷提问
-    Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (chip) {
-      chip.addEventListener('click', function () { send(chip.getAttribute('data-q')); });
+    // 快捷提问（用事件委托，欢迎语会被反复重建）
+    chatBody.addEventListener('click', function (e) {
+      var chip = e.target.closest ? e.target.closest('.chip') : null;
+      if (chip) {
+        send(chip.getAttribute('data-q'));
+      }
     });
 
-    // 新建会话：换一个 memoryId，清空界面
-    btnNew.addEventListener('click', function () {
-      resetMemoryId();
-      chatBody.innerHTML = '';
-      welcome = null;
-      chatBody.innerHTML =
-        '<div class="welcome" id="welcome">' +
-          '<h2>新会话已开始 ✨</h2>' +
-          '<p>之前的对话上下文已清除，可以开始新的提问了</p>' +
-        '</div>';
-      welcome = document.getElementById('welcome');
+    // 悬停展开面板时刷新一次，保证列表是最新的
+    historyWrap.addEventListener('mouseenter', function () { loadSessions(); });
+
+    // 点击图标切换固定展开（触屏没有 hover，且点开后可移开鼠标不收起）
+    btnHistory.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (historyWrap.classList.contains('open')) {
+        closePanel();
+      } else {
+        openPanel();
+        loadSessions();
+      }
+    });
+
+    // 点击别处收起
+    document.addEventListener('click', function (e) {
+      if (!historyWrap.contains(e.target)) {
+        closePanel();
+      }
+    });
+
+    // Esc 收起
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closePanel();
+    });
+
+    btnNew.addEventListener('click', newSession);
+
+    /* ---------- 初始化 ---------- */
+
+    (async function init() {
+      try { currentId = localStorage.getItem(CURRENT_KEY); } catch (e) { currentId = null; }
+
+      var sessions = await loadSessions();
+
+      var exists = sessions.some(function (s) { return s.memoryId === currentId; });
+
+      if (currentId && exists) {
+        // 恢复上次的会话
+        var saved = currentId;
+        currentId = null;          // 置空，避免 selectSession 因为「相同 id」直接 return
+        await selectSession(saved);
+      } else if (sessions.length) {
+        // 上次的会话已被淘汰/删除，回退到最近一条
+        currentId = null;
+        await selectSession(sessions[0].memoryId);
+      } else {
+        clearBody();
+        showWelcome(DEFAULT_WELCOME);
+      }
+
       input.focus();
-    });
+    })();
 
-    input.focus();
   })();
   </script>
 </body>
