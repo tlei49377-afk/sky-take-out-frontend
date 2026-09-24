@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>角色权限管理 - 智能外卖平台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                   "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      font-size: 14px;
+      color: #303133;
+      background: #f5f7fa;
+    }
+
+    .app { display: flex; flex-direction: column; height: 100vh; background: #fff; }
+
+    /* ---------- 顶部 ---------- */
+    .header {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 22px;
+      border-bottom: 1px solid #ebeef5;
+    }
+
+    .title { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; }
+
+    .title .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #409eff;
+      box-shadow: 0 0 0 3px rgba(64, 158, 255, .15);
+    }
+
+    .title .sub { font-size: 12px; font-weight: 400; color: #909399; margin-left: 4px; }
+
+    .tabs { display: flex; gap: 8px; }
+
+    .tab {
+      padding: 6px 14px;
+      font-size: 13px;
+      color: #606266;
+      background: #f5f7fa;
+      border: 1px solid #ebeef5;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .tab.active { color: #fff; background: #409eff; border-color: #409eff; }
+
+    /* ---------- 主体 ---------- */
+    .body { flex: 1 1 auto; display: flex; min-height: 0; }
+
+    .side {
+      flex: 0 0 240px;
+      padding: 12px;
+      border-right: 1px solid #ebeef5;
+      overflow-y: auto;
+    }
+
+    .side-head { padding: 6px 8px 10px; font-size: 12px; color: #909399; }
+
+    .side-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      margin-bottom: 4px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .side-item:hover { background: #f5f7fa; }
+    .side-item.active { background: #ecf5ff; color: #409eff; }
+    .side-item .code { font-size: 12px; color: #909399; }
+    .side-item.active .code { color: #79bbff; }
+
+    .main { flex: 1 1 auto; padding: 16px 20px; overflow-y: auto; }
+
+    /* ---------- 权限分组 ---------- */
+    .group { margin-bottom: 14px; border: 1px solid #ebeef5; border-radius: 8px; }
+
+    .group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      background: #fafafa;
+      border-bottom: 1px solid #ebeef5;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .group-head label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 12px; color: #909399; cursor: pointer; }
+
+    .group-body { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 10px 14px; }
+
+    .perm { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #606266; }
+    .perm input, .group-head input { cursor: pointer; }
+    .perm .pcode { font-size: 11px; color: #c0c4cc; }
+
+    .empty { padding: 40px; text-align: center; font-size: 13px; color: #c0c4cc; }
+
+    /* ---------- 底部 ---------- */
+    .footer {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 22px;
+      border-top: 1px solid #ebeef5;
+    }
+
+    .status { font-size: 13px; color: #909399; }
+    .status.ok { color: #67c23a; }
+    .status.err { color: #f56c6c; }
+
+    .btn {
+      padding: 8px 20px;
+      font-size: 14px;
+      color: #fff;
+      background: #409eff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+
+    .btn:hover:not(:disabled) { background: #66b1ff; }
+    .btn:disabled { background: #a0cfff; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <div class="header">
+      <div class="title">
+        <span class="dot"></span>
+        角色权限管理
+        <span class="sub">角色 → 权限 / 员工 → 角色</span>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="role">角色权限</div>
+        <div class="tab" data-tab="employee">员工角色</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="side" id="side"></div>
+      <div class="main" id="main"></div>
+    </div>
+
+    <div class="footer">
+      <div class="status" id="status">请选择左侧条目</div>
+      <button class="btn" id="btnSave" disabled>保存</button>
+    </div>
+
+  </div>
+
+  <script>  (function () {
+    'use strict';
+
+    var API_ROLE_LIST = '/api/role/list';
+    var API_ROLE      = '/api/role';              // /api/role/{id}/permissions
+    var API_PERM_LIST = '/api/permission/list';
+    var API_EMP_PAGE  = '/api/employee/page?page=1&pageSize=100';
+    var API_EMP       = '/api/employee';          // /api/employee/{id}/roles
+
+    // 权限点按 code 前缀分组展示，顺序固定
+    var GROUP_ORDER = ['dish', 'category', 'setmeal', 'order', 'employee', 'report', 'role', 'shop'];
+    var GROUP_NAME  = {
+      dish: '菜品', category: '分类', setmeal: '套餐', order: '订单',
+      employee: '员工', report: '报表', role: '角色权限', shop: '店铺'
+    };
+
+    var sideEl   = document.getElementById('side');
+    var mainEl   = document.getElementById('main');
+    var statusEl = document.getElementById('status');
+    var btnSave  = document.getElementById('btnSave');
+
+    var state = {
+      tab: 'role',
+      roles: null,        // 角色列表，懒加载
+      employees: null,    // 员工列表，懒加载
+      perms: null,        // 全部权限点，懒加载
+      currentId: null,    // 当前选中的角色 / 员工 id
+      checked: {}         // 当前勾选集合，{ id: true }
+    };
+
+    /* ---------- 基础工具 ---------- */
+
+    function getCookie(name) {
+      var m = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function errText(err) {
+      return err && err.message ? err.message : String(err);
+    }
+
+    // 统一请求：带上 token，解开后端的 Result 包装
+    async function api(url, options) {
+      var token = getCookie('token');
+      if (!token) {
+        throw new Error('未检测到登录状态，请先在管理端登录');
+      }
+      options = options || {};
+      options.headers = options.headers || {};
+      options.headers['token'] = token;
+
+      var resp = await fetch(url, options);
+      if (resp.status === 401) {
+        throw new Error('登录状态已失效，请重新登录');
+      }
+      if (!resp.ok) {
+        throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
+      }
+      var body = await resp.json();
+      if (body.code !== 1) {
+        throw new Error(body.msg || '请求失败');
+      }
+      return body.data;
+    }
+
+    function setStatus(text, type) {
+      statusEl.textContent = text;
+      statusEl.className = 'status' + (type ? ' ' + type : '');
+    }
+
+    function checkedIds() {
+      return Object.keys(state.checked)
+        .filter(function (id) { return state.checked[id]; })
+        .map(Number);
+    }
+
+    /* ---------- 数据加载 ---------- */
+
+    async function ensureData() {
+      if (!state.roles) {
+        state.roles = await api(API_ROLE_LIST);
+      }
+      if (state.tab === 'role') {
+        if (!state.perms) {
+          state.perms = await api(API_PERM_LIST);
+        }
+      } else if (!state.employees) {
+        var page = await api(API_EMP_PAGE);
+        state.employees = (page && page.records) ? page.records : (page || []);
+      }
+    }
+
+    /* ---------- 渲染 ---------- */
+
+    function renderSide() {
+      var list = state.tab === 'role' ? state.roles : state.employees;
+      var head = state.tab === 'role' ? '角色（' + list.length + '）' : '员工（' + list.length + '）';
+
+      sideEl.innerHTML = '<div class="side-head">' + head + '</div>'
+        + list.map(function (item) {
+            var sub = state.tab === 'role' ? item.code : item.username;
+            return '<div class="side-item" data-id="' + item.id + '">'
+              + '<span>' + escapeHtml(item.name) + '</span>'
+              + '<span class="code">' + escapeHtml(sub) + '</span>'
+              + '</div>';
+          }).join('');
+    }
+
+    // 角色页：权限点按模块分组；员工页：只有一组「角色」
+    function buildGroups() {
+      if (state.tab !== 'role') {
+        return [{ prefix: 'role', name: '角色', items: state.roles }];
+      }
+
+      var bucket = {};
+      state.perms.forEach(function (p) {
+        var prefix = p.code.split(':')[0];
+        if (!bucket[prefix]) {
+          bucket[prefix] = [];
+        }
+        bucket[prefix].push(p);
+      });
+
+      var groups = [];
+      GROUP_ORDER.forEach(function (prefix) {
+        if (bucket[prefix]) {
+          groups.push({ prefix: prefix, name: GROUP_NAME[prefix] || prefix, items: bucket[prefix] });
+        }
+      });
+      return groups;
+    }
+
+    function renderMain() {
+      var groups = buildGroups();
+      if (!groups.length) {
+        mainEl.innerHTML = '<div class="empty">暂无可分配的条目</div>';
+        return;
+      }
+
+      mainEl.innerHTML = groups.map(function (g) {
+        var allChecked = g.items.every(function (it) { return state.checked[it.id]; });
+
+        var items = g.items.map(function (it) {
+          return '<label class="perm">'
+            + '<input type="checkbox" data-id="' + it.id + '"' + (state.checked[it.id] ? ' checked' : '') + '>'
+            + '<span>' + escapeHtml(it.name) + '</span>'
+            + '<span class="pcode">' + escapeHtml(it.code) + '</span>'
+            + '</label>';
+        }).join('');
+
+        return '<div class="group" data-group="' + g.prefix + '">'
+          + '<div class="group-head">'
+          + '<span>' + escapeHtml(g.name) + '</span>'
+          + '<label><input type="checkbox" data-all="' + g.prefix + '"' + (allChecked ? ' checked' : '') + '>全选</label>'
+          + '</div>'
+          + '<div class="group-body">' + items + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function highlightSide() {
+      var items = sideEl.querySelectorAll('.side-item');
+      for (var i = 0; i < items.length; i++) {
+        var on = Number(items[i].dataset.id) === state.currentId;
+        items[i].classList.toggle('active', on);
+      }
+    }
+
+    /* ---------- 交互 ---------- */
+
+    async function selectItem(id) {
+      state.currentId = id;
+      state.checked = {};
+      highlightSide();
+      btnSave.disabled = true;
+      setStatus('加载中...');
+
+      try {
+        var ids = state.tab === 'role'
+          ? await api(API_ROLE + '/' + id + '/permissions')
+          : await api(API_EMP + '/' + id + '/roles');
+
+        (ids || []).forEach(function (pid) { state.checked[pid] = true; });
+        renderMain();
+        btnSave.disabled = false;
+        setStatus('已加载，勾选后点击保存');
+      } catch (err) {
+        mainEl.innerHTML = '';
+        setStatus('加载失败：' + errText(err), 'err');
+      }
+    }
+
+    mainEl.addEventListener('change', function (e) {
+      var el = e.target;
+      if (el.type !== 'checkbox') {
+        return;
+      }
+
+      // 组内全选
+      if (el.dataset.all) {
+        var group = buildGroups().filter(function (g) { return g.prefix === el.dataset.all; })[0];
+        if (group) {
+          group.items.forEach(function (it) { state.checked[it.id] = el.checked; });
+        }
+        renderMain();
+        return;
+      }
+
+      var id = Number(el.dataset.id);
+      if (el.checked) {
+        state.checked[id] = true;
+      } else {
+        delete state.checked[id];
+      }
+
+      // 同步当前组的全选框
+      var box = el.closest('.group');
+      if (box) {
+        var group2 = buildGroups().filter(function (g) { return g.prefix === box.dataset.group; })[0];
+        var head = box.querySelector('.group-head input');
+        if (group2 && head) {
+          head.checked = group2.items.every(function (it) { return state.checked[it.id]; });
+        }
+      }
+    });
+
+    sideEl.addEventListener('click', function (e) {
+      var item = e.target.closest('.side-item');
+      if (item) {
+        selectItem(Number(item.dataset.id));
+      }
+    });
+
+    btnSave.addEventListener('click', save);
+
+    async function save() {
+      if (!state.currentId) {
+        return;
+      }
+      btnSave.disabled = true;
+      setStatus('保存中...');
+
+      var ids = checkedIds();
+      try {
+        if (state.tab === 'role') {
+          await api(API_ROLE + '/' + state.currentId + '/permissions', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permissionIds: ids })
+          });
+          setStatus('已保存，持有该角色的员工权限缓存已刷新', 'ok');
+        } else {
+          await api(API_EMP + '/' + state.currentId + '/roles', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roleIds: ids })
+          });
+          setStatus('已保存，该员工的权限缓存已刷新', 'ok');
+        }
+      } catch (err) {
+        setStatus('保存失败：' + errText(err), 'err');
+      }
+      btnSave.disabled = false;
+    }
+
+    /* ---------- 页签与初始化 ---------- */
+
+    var tabs = document.querySelectorAll('.tab');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].addEventListener('click', function () {
+        if (state.tab === this.dataset.tab) {
+          return;
+        }
+        state.tab = this.dataset.tab;
+        state.currentId = null;
+        state.checked = {};
+        mainEl.innerHTML = '';
+        btnSave.disabled = true;
+
+        for (var j = 0; j < tabs.length; j++) {
+          tabs[j].classList.toggle('active', tabs[j] === this);
+        }
+        init();
+      });
+    }
+
+    async function init() {
+      setStatus('加载中...');
+      try {
+        await ensureData();
+        renderSide();
+        setStatus('请选择左侧条目');
+      } catch (err) {
+        sideEl.innerHTML = '';
+        setStatus('初始化失败：' + errText(err), 'err');
+      }
+    }
+
+    init();
+  })();
+  </script>
+</body>
+</html>

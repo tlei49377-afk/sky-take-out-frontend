@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>员工与权限 - 智能外卖平台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                   "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      font-size: 14px;
+      color: #303133;
+      background: #f5f7fa;
+    }
+
+    .app { display: flex; flex-direction: column; height: 100vh; background: #fff; }
+
+    /* ---------- 顶部 ---------- */
+    .header {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 22px;
+      border-bottom: 1px solid #ebeef5;
+    }
+
+    .title { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; }
+
+    .title .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #ffc200;
+      box-shadow: 0 0 0 3px rgba(255, 194, 0, .25);
+    }
+
+    .title .sub { font-size: 12px; font-weight: 400; color: #909399; margin-left: 4px; }
+
+    .tabs { display: flex; gap: 8px; }
+
+    .tab {
+      padding: 6px 14px;
+      font-size: 13px;
+      color: #606266;
+      background: #f5f7fa;
+      border: 1px solid #ebeef5;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .tab.active { color: #fff; background: #333333; border-color: #333333; }
+
+    /* ---------- 主体 ---------- */
+    .body { flex: 1 1 auto; display: flex; min-height: 0; }
+
+    .pane { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+    .pane.hidden { display: none; }
+
+    /* 员工列表 */
+    .toolbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 22px;
+      border-bottom: 1px solid #ebeef5;
+    }
+
+    .input {
+      height: 34px;
+      padding: 0 12px;
+      font-size: 13px;
+      color: #303133;
+      border: 1px solid #dcdfe6;
+      border-radius: 5px;
+      outline: none;
+    }
+
+    .input:focus { border-color: #333333; }
+
+    .btn {
+      padding: 8px 20px;
+      font-size: 14px;
+      color: #fff;
+      background: #333333;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+
+    .btn:hover:not(:disabled) { background: #4d4d4d; }
+    .btn:disabled { background: #c8c8c8; cursor: not-allowed; }
+
+    .btn-plain {
+      height: 34px;
+      padding: 0 16px;
+      font-size: 13px;
+      color: #606266;
+      background: #fff;
+      border: 1px solid #dcdfe6;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .btn-plain:hover { color: #333333; border-color: #333333; }
+
+    .table-wrap { flex: 1 1 auto; padding: 0 22px; overflow-y: auto; }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    th, td {
+      padding: 12px 8px;
+      font-size: 13px;
+      text-align: left;
+      border-bottom: 1px solid #ebeef5;
+    }
+
+    th { color: #909399; font-weight: 400; }
+
+    .chip {
+      display: inline-block;
+      padding: 1px 8px;
+      margin-right: 4px;
+      font-size: 12px;
+      color: #333333;
+      background: #f2f2f2;
+      border-radius: 10px;
+    }
+
+    .chip.none { color: #c0c4cc; background: #f5f7fa; }
+
+    .state { font-size: 12px; }
+    .state.on { color: #67c23a; }
+    .state.off { color: #f56c6c; }
+
+    .op { margin-right: 12px; font-size: 13px; color: #333333; cursor: pointer; }
+    .op:hover { text-decoration: underline; }
+
+    .pager {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 12px 22px;
+      border-top: 1px solid #ebeef5;
+    }
+
+    .pager .info { font-size: 13px; color: #909399; margin-right: 6px; }
+
+    /* 角色权限 */
+    .split { flex: 1 1 auto; display: flex; min-height: 0; }
+
+    .side {
+      flex: 0 0 240px;
+      padding: 12px;
+      border-right: 1px solid #ebeef5;
+      overflow-y: auto;
+    }
+
+    .side-head { padding: 6px 8px 10px; font-size: 12px; color: #909399; }
+
+    .side-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      margin-bottom: 4px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .side-item:hover { background: #f5f7fa; }
+    .side-item.active { background: #f2f2f2; color: #333333; }
+    .side-item .code { font-size: 12px; color: #909399; }
+    .side-item.active .code { color: #888888; }
+
+    .main { flex: 1 1 auto; padding: 16px 20px; overflow-y: auto; }
+
+    .group { margin-bottom: 14px; border: 1px solid #ebeef5; border-radius: 8px; }
+
+    .group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      background: #fafafa;
+      border-bottom: 1px solid #ebeef5;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .group-head label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 12px; color: #909399; cursor: pointer; }
+
+    .group-body { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 10px 14px; }
+
+    .perm { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #606266; }
+    .perm input, .group-head input { cursor: pointer; accent-color: #333333; }
+    .perm .pcode { font-size: 11px; color: #c0c4cc; }
+
+    .empty { padding: 40px; text-align: center; font-size: 13px; color: #c0c4cc; }
+
+    /* ---------- 弹窗 ---------- */
+    .mask {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, .35);
+    }
+
+    .mask.hidden { display: none; }
+
+    .dialog {
+      width: 560px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .15);
+    }
+
+    .dialog-head {
+      padding: 16px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      border-bottom: 1px solid #ebeef5;
+    }
+
+    .form { display: flex; flex-wrap: wrap; gap: 14px 18px; padding: 18px 20px; }
+
+    .form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #606266; }
+    .form label.half, .form .field.half { flex: 1 1 46%; }
+    .form .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #606266; }
+    .form .field.full { flex: 1 1 100%; }
+    .form label.full { flex: 1 1 100%; }
+    .form input, .form select {
+      height: 34px;
+      padding: 0 10px;
+      font-size: 13px;
+      color: #303133;
+      border: 1px solid #dcdfe6;
+      border-radius: 5px;
+      outline: none;
+    }
+
+    .form input:focus, .form select:focus { border-color: #333333; }
+
+    .roles { display: flex; flex-wrap: wrap; gap: 8px 18px; padding-top: 2px; }
+
+    .pick { padding: 0 20px 16px; }
+
+    .pick-head { margin-bottom: 8px; font-size: 13px; color: #606266; }
+
+    .pick .hint { display: block; margin-top: 8px; }
+
+    .perm-groups {
+      max-height: 240px;
+      padding: 10px 12px;
+      overflow-y: auto;
+      border: 1px solid #ebeef5;
+      border-radius: 8px;
+    }
+    .roles .perm { flex-direction: row; align-items: center; }
+
+    .dialog-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 20px;
+      border-top: 1px solid #ebeef5;
+    }
+
+    .hint { flex: 1 1 100%; font-size: 12px; color: #909399; }
+
+    /* 必填项标题前的红星，与平台表单一致 */
+    .form label.req > span::before {
+      content: '*';
+      margin-right: 4px;
+      color: #f56c6c;
+    }
+
+    .tip { font-size: 12px; color: #909399; }
+
+    .hidden { display: none; }
+
+    /* ---------- 底部 ---------- */
+    .footer {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 22px;
+      border-top: 1px solid #ebeef5;
+    }
+
+    .status { font-size: 13px; color: #909399; }
+    .status.ok { color: #67c23a; }
+    .status.err { color: #f56c6c; }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <div class="header">
+      <div class="title">
+        <span class="dot"></span>
+        员工与权限
+        <span class="sub">员工 → 角色 → 权限</span>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="employee">员工管理</div>
+        <div class="tab" data-tab="role">角色权限</div>
+      </div>
+    </div>
+
+    <div class="body">
+
+      <div class="pane" id="paneEmployee">
+        <div class="toolbar">
+          <input class="input" id="kw" placeholder="按姓名 / 用户名搜索" style="width:220px">
+          <button class="btn-plain" id="btnSearch">查询</button>
+          <button class="btn" id="btnAdd" style="height:34px;padding:0 16px;font-size:13px">新增员工</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:16%">用户名</th>
+                <th style="width:14%">姓名</th>
+                <th style="width:16%">手机号</th>
+                <th style="width:24%">角色</th>
+                <th style="width:10%">状态</th>
+                <th style="width:20%">操作</th>
+              </tr>
+            </thead>
+            <tbody id="empBody"></tbody>
+          </table>
+        </div>
+
+        <div class="pager">
+          <span class="info" id="pageInfo"></span>
+          <button class="btn-plain" id="btnPrev">上一页</button>
+          <button class="btn-plain" id="btnNext">下一页</button>
+        </div>
+      </div>
+
+      <div class="pane hidden" id="paneRole">
+        <div class="toolbar">
+          <button class="btn" id="btnAddRole" style="height:34px;padding:0 16px;font-size:13px">新增角色</button>
+          <span class="tip">自定义角色：自己命名并勾选权限点</span>
+        </div>
+
+        <div class="split">
+          <div class="side" id="roleSide"></div>
+          <div class="main" id="permMain"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer">
+      <div class="status" id="status">加载中...</div>
+      <button class="btn" id="btnSave" disabled>保存</button>
+    </div>
+
+  </div>
+
+  <div class="mask hidden" id="mask">
+    <div class="dialog">
+      <div class="dialog-head" id="dlgTitle">新增员工</div>
+
+      <div class="form">
+        <label class="half req"><span>用户名</span><input id="fUsername"></label>
+        <label class="half req"><span>姓名</span><input id="fName"></label>
+        <label class="half req"><span>手机号</span><input id="fPhone"></label>
+        <label class="half req"><span>性别</span>
+          <select id="fSex">
+            <option value="1">男</option>
+            <option value="0">女</option>
+          </select>
+        </label>
+        <label class="half req"><span>身份证号</span><input id="fIdNumber"></label>
+        <label class="half"><span>登录密码</span><input id="fPassword" type="password" autocomplete="new-password"></label>
+        <div class="field full">角色<div class="roles" id="fRoles"></div></div>
+        <div class="hint" id="dlgHint">登录密码不填默认为 123456</div>
+      </div>
+
+      <div class="dialog-foot">
+        <button class="btn-plain" id="btnCancel">取消</button>
+        <button class="btn" id="btnOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mask hidden" id="maskRole">
+    <div class="dialog">
+      <div class="dialog-head">新增角色</div>
+
+      <div class="form">
+        <label class="half req"><span>角色编码</span><input id="rCode" placeholder="大写字母，如 KITCHEN"></label>
+        <label class="half req"><span>角色名称</span><input id="rName" placeholder="如 后厨"></label>
+        <label class="full"><span>说明</span><input id="rDesc" placeholder="选填"></label>
+      </div>
+
+      <div class="pick">
+        <div class="pick-head">权限</div>
+        <div class="perm-groups" id="rPerms"></div>
+        <div class="hint">可先勾好权限点，创建后立即生效；也可以创建完再在右侧调整</div>
+      </div>
+
+      <div class="dialog-foot">
+        <button class="btn-plain" id="btnRoleCancel">取消</button>
+        <button class="btn" id="btnRoleOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script>  (function () {
+    'use strict';
+
+    var API_EMP_PAGE   = '/api/employee/page';
+    var API_EMP        = '/api/employee';          // 新增 POST / 编辑 PUT / 角色 GET PUT /{id}/roles
+    var API_EMP_STATUS = '/api/employee/status/';  // ?id=
+    var API_ROLE_LIST  = '/api/role/list';
+    var API_ROLE       = '/api/role';              // /{id}/permissions
+    var API_PERM_LIST  = '/api/permission/list';
+
+    // 权限点按 code 前缀分组展示，顺序固定
+    var GROUP_ORDER = ['dish', 'category', 'setmeal', 'order', 'employee', 'report', 'role', 'shop'];
+    var GROUP_NAME  = {
+      dish: '菜品', category: '分类', setmeal: '套餐', order: '订单',
+      employee: '员工', report: '报表', role: '角色权限', shop: '店铺'
+    };
+
+    var statusEl  = document.getElementById('status');
+    var empBody   = document.getElementById('empBody');
+    var pageInfoEl = document.getElementById('pageInfo');
+    var btnPrev   = document.getElementById('btnPrev');
+    var btnNext   = document.getElementById('btnNext');
+    var btnSave   = document.getElementById('btnSave');
+    var btnOk     = document.getElementById('btnOk');
+    var maskEl    = document.getElementById('mask');
+    var roleSide  = document.getElementById('roleSide');
+    var permMain  = document.getElementById('permMain');
+    var roleBox   = document.getElementById('fRoles');
+    var maskRoleEl  = document.getElementById('maskRole');
+    var rolePermBox = document.getElementById('rPerms');
+    var btnRoleOk   = document.getElementById('btnRoleOk');
+
+    var paneEmployee = document.getElementById('paneEmployee');
+    var paneRole     = document.getElementById('paneRole');
+
+    var state = {
+      tab: 'employee',
+      roles: null,       // 全部角色
+      perms: null,       // 全部权限点
+      page: 1,
+      pageSize: 10,
+      keyword: '',
+      total: 0,
+      records: [],
+      currentRoleId: null,
+      checked: {},       // 角色权限页的勾选集合
+      editing: null,     // 正在编辑的员工，null 表示新增
+      editingRoles: [],  // 打开弹窗时该员工已有的角色
+      newRoleChecked: {} // 新增角色弹窗里勾选的权限
+    };
+
+    /* ---------- 基础工具 ---------- */
+
+    function getCookie(name) {
+      var m = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function errText(err) {
+      return err && err.message ? err.message : String(err);
+    }
+
+    // 统一请求：带上 token，解开后端的 Result 包装
+    async function api(url, options) {
+      var token = getCookie('token');
+      if (!token) {
+        throw new Error('未检测到登录状态，请先在管理端登录');
+      }
+
+      options = options || {};
+      options.headers = options.headers || {};
+      options.headers['token'] = token;
+
+      var resp = await fetch(url, options);
+      if (resp.status === 401) {
+        throw new Error('登录状态已失效，请重新登录');
+      }
+
+      var body = await resp.json();
+      if (body.code !== 1) {
+        throw new Error(body.msg || '请求失败');
+      }
+      return body.data;
+    }
+
+    function setStatus(text, type) {
+      statusEl.textContent = text;
+      statusEl.className = 'status' + (type ? ' ' + type : '');
+    }
+
+    function sameIds(a, b) {
+      var s1 = a.slice().sort().join(',');
+      var s2 = b.slice().sort().join(',');
+      return s1 === s2;
+    }
+
+    // 清空勾选集合
+    function resetStore(store) {
+      Object.keys(store).forEach(function (key) {
+        delete store[key];
+      });
+    }
+
+    /* ---------- 员工管理 ---------- */
+
+    async function loadRoles() {
+      if (!state.roles) {
+        state.roles = await api(API_ROLE_LIST);
+      }
+      return state.roles;
+    }
+
+    async function loadEmployees() {
+      var url = API_EMP_PAGE + '?page=' + state.page + '&pageSize=' + state.pageSize;
+      if (state.keyword) {
+        url += '&name=' + encodeURIComponent(state.keyword);
+      }
+
+      var pageResult = await api(url);
+      state.total = pageResult.total;
+      state.records = pageResult.records || [];
+      renderTable();
+    }
+
+    function renderTable() {
+      if (!state.records.length) {
+        empBody.innerHTML = '<tr><td colspan="6"><div class="empty">没有查询到员工</div></td></tr>';
+      } else {
+        empBody.innerHTML = state.records.map(function (emp) {
+          var chips = (emp.roles && emp.roles.length)
+            ? emp.roles.map(function (r) { return '<span class="chip">' + escapeHtml(r.name) + '</span>'; }).join('')
+            : '<span class="chip none">未分配</span>';
+
+          var onOff = emp.status === 1
+            ? '<span class="op" data-act="disable" data-id="' + emp.id + '">禁用</span>'
+            : '<span class="op" data-act="enable" data-id="' + emp.id + '">启用</span>';
+
+          return '<tr>'
+            + '<td>' + escapeHtml(emp.username) + '</td>'
+            + '<td>' + escapeHtml(emp.name) + '</td>'
+            + '<td>' + escapeHtml(emp.phone || '') + '</td>'
+            + '<td>' + chips + '</td>'
+            + '<td><span class="state ' + (emp.status === 1 ? 'on' : 'off') + '">'
+            + (emp.status === 1 ? '启用' : '禁用') + '</span></td>'
+            + '<td><span class="op" data-act="edit" data-id="' + emp.id + '">编辑</span>' + onOff + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      var pages = Math.max(1, Math.ceil(state.total / state.pageSize));
+      pageInfoEl.textContent = '第 ' + state.page + ' / ' + pages + ' 页，共 ' + state.total + ' 条';
+      btnPrev.disabled = state.page <= 1;
+      btnNext.disabled = state.page >= pages;
+    }
+
+    function findEmployee(id) {
+      var found = null;
+      state.records.forEach(function (emp) {
+        if (emp.id === id) {
+          found = emp;
+        }
+      });
+      return found;
+    }
+
+    /* ---------- 新增 / 编辑弹窗 ---------- */
+
+    function renderRoleBox(selected) {
+      roleBox.innerHTML = state.roles.map(function (r) {
+        var checked = selected.indexOf(r.id) >= 0 ? ' checked' : '';
+        return '<label class="perm"><input type="checkbox" value="' + r.id + '"' + checked + '>'
+          + '<span>' + escapeHtml(r.name) + '</span></label>';
+      }).join('');
+    }
+
+    function selectedRoles() {
+      var ids = [];
+      var boxes = roleBox.querySelectorAll('input');
+      for (var i = 0; i < boxes.length; i++) {
+        if (boxes[i].checked) {
+          ids.push(Number(boxes[i].value));
+        }
+      }
+      return ids;
+    }
+
+    async function openDialog(emp) {
+      await loadRoles();
+
+      state.editing = emp || null;
+      state.editingRoles = emp && emp.roles ? emp.roles.map(function (r) { return r.id; }) : [];
+
+      document.getElementById('dlgTitle').textContent = emp ? '编辑员工' : '新增员工';
+      document.getElementById('dlgHint').textContent = emp
+        ? '登录密码留空表示不修改；改完角色保存后，该员工下一次请求即刻生效'
+        : '登录密码留空默认为 123456';
+
+      document.getElementById('fUsername').value = emp ? emp.username : '';
+      document.getElementById('fName').value = emp ? emp.name : '';
+      document.getElementById('fPhone').value = emp ? (emp.phone || '') : '';
+      document.getElementById('fSex').value = emp ? emp.sex : '1';
+      document.getElementById('fIdNumber').value = emp ? (emp.idNumber || '') : '';
+      // 密码不回显，留空即不改
+      document.getElementById('fPassword').value = '';
+      document.getElementById('fPassword').placeholder = emp ? '留空表示不修改' : '不填默认 123456';
+
+      renderRoleBox(state.editingRoles);
+      maskEl.classList.remove('hidden');
+    }
+
+    function closeDialog() {
+      maskEl.classList.add('hidden');
+      state.editing = null;
+    }
+
+    async function submitDialog() {
+      var body = {
+        username: document.getElementById('fUsername').value.trim(),
+        name: document.getElementById('fName').value.trim(),
+        phone: document.getElementById('fPhone').value.trim(),
+        sex: document.getElementById('fSex').value,
+        idNumber: document.getElementById('fIdNumber').value.trim()
+      };
+
+      // 密码不填就交给后端：新增用默认值，编辑保持原密码
+      var password = document.getElementById('fPassword').value;
+      if (password) {
+        body.password = password;
+      }
+
+      if (!body.username || !body.name || !body.phone || !body.sex || !body.idNumber) {
+        setStatus('带 * 的为必填项，请填写完整', 'err');
+        return;
+      }
+
+      var roles = selectedRoles();
+      var isEdit = !!state.editing;
+      if (isEdit) {
+        body.id = state.editing.id;
+        // 角色没变就不提交，避免改自己的资料时被「不能修改自己的角色」拦下
+        if (!sameIds(roles, state.editingRoles)) {
+          body.roleIds = roles;
+        }
+      } else {
+        body.roleIds = roles;
+      }
+
+      btnOk.disabled = true;
+      try {
+        await api(API_EMP, {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        closeDialog();
+        await loadEmployees();
+        setStatus(isEdit ? '员工信息已更新' : '员工已新增' + (password ? '' : '，默认密码 123456'), 'ok');
+      } catch (err) {
+        setStatus((isEdit ? '更新失败：' : '新增失败：') + errText(err), 'err');
+      } finally {
+        btnOk.disabled = false;
+      }
+    }
+
+    /* ---------- 角色权限 ---------- */
+
+    function buildGroups() {
+      var bucket = {};
+      (state.perms || []).forEach(function (p) {
+        var prefix = p.code.split(':')[0];
+        if (!bucket[prefix]) {
+          bucket[prefix] = [];
+        }
+        bucket[prefix].push(p);
+      });
+
+      var groups = [];
+      GROUP_ORDER.forEach(function (prefix) {
+        if (bucket[prefix]) {
+          groups.push({ prefix: prefix, name: GROUP_NAME[prefix] || prefix, items: bucket[prefix] });
+        }
+      });
+      return groups;
+    }
+
+    function renderRoleSide() {
+      roleSide.innerHTML = '<div class="side-head">角色（' + state.roles.length + '）</div>'
+        + state.roles.map(function (r) {
+            var active = state.currentRoleId === r.id ? ' active' : '';
+            return '<div class="side-item' + active + '" data-id="' + r.id + '">'
+              + '<span>' + escapeHtml(r.name) + '</span>'
+              + '<span class="code">' + escapeHtml(r.code) + '</span>'
+              + '</div>';
+          }).join('');
+    }
+
+    function permsHtml(checked) {
+      var groups = buildGroups();
+      if (!groups.length) {
+        return '<div class="empty">暂无可分配的权限点</div>';
+      }
+
+      return groups.map(function (g) {
+        var allChecked = g.items.every(function (it) { return checked[it.id]; });
+
+        var items = g.items.map(function (it) {
+          return '<label class="perm">'
+            + '<input type="checkbox" data-id="' + it.id + '"' + (checked[it.id] ? ' checked' : '') + '>'
+            + '<span>' + escapeHtml(it.name) + '</span>'
+            + '<span class="pcode">' + escapeHtml(it.code) + '</span>'
+            + '</label>';
+        }).join('');
+
+        return '<div class="group" data-group="' + g.prefix + '">'
+          + '<div class="group-head">'
+          + '<span>' + escapeHtml(g.name) + '</span>'
+          + '<label><input type="checkbox" data-all="' + g.prefix + '"' + (allChecked ? ' checked' : '') + '>全选</label>'
+          + '</div>'
+          + '<div class="group-body">' + items + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function renderPerms() {
+      permMain.innerHTML = permsHtml(state.checked);
+    }
+
+    async function selectRole(id) {
+      state.currentRoleId = id;
+      resetStore(state.checked);
+      renderRoleSide();
+      btnSave.disabled = true;
+      setStatus('加载中...');
+
+      try {
+        var ids = await api(API_ROLE + '/' + id + '/permissions');
+        (ids || []).forEach(function (pid) { state.checked[pid] = true; });
+        renderPerms();
+        btnSave.disabled = false;
+        setStatus('已加载，勾选后点击保存');
+      } catch (err) {
+        permMain.innerHTML = '';
+        setStatus('加载失败：' + errText(err), 'err');
+      }
+    }
+
+    async function savePermissions() {
+      if (!state.currentRoleId) {
+        return;
+      }
+
+      btnSave.disabled = true;
+      setStatus('保存中...');
+
+      var ids = Object.keys(state.checked)
+        .filter(function (id) { return state.checked[id]; })
+        .map(Number);
+
+      try {
+        await api(API_ROLE + '/' + state.currentRoleId + '/permissions', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ permissionIds: ids })
+        });
+        setStatus('保存成功，该角色的员工缓存已失效', 'ok');
+      } catch (err) {
+        setStatus('保存失败：' + errText(err), 'err');
+      } finally {
+        btnSave.disabled = false;
+      }
+    }
+
+    /* ---------- 新增角色弹窗 ---------- */
+
+    async function openRoleDialog() {
+      if (!state.perms) {
+        try {
+          state.perms = await api(API_PERM_LIST);
+        } catch (err) {
+          setStatus('权限点加载失败：' + errText(err), 'err');
+          return;
+        }
+      }
+
+      resetStore(state.newRoleChecked);
+      document.getElementById('rCode').value = '';
+      document.getElementById('rName').value = '';
+      document.getElementById('rDesc').value = '';
+      rolePermBox.innerHTML = permsHtml(state.newRoleChecked);
+      maskRoleEl.classList.remove('hidden');
+    }
+
+    function closeRoleDialog() {
+      maskRoleEl.classList.add('hidden');
+    }
+
+    async function submitRoleDialog() {
+      var code = document.getElementById('rCode').value.trim();
+      var name = document.getElementById('rName').value.trim();
+      if (!code || !name) {
+        setStatus('带 * 的为必填项，请填写完整', 'err');
+        return;
+      }
+
+      var permissionIds = Object.keys(state.newRoleChecked)
+        .filter(function (id) { return state.newRoleChecked[id]; })
+        .map(Number);
+
+      btnRoleOk.disabled = true;
+      try {
+        await api(API_ROLE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: code,
+            name: name,
+            description: document.getElementById('rDesc').value.trim(),
+            permissionIds: permissionIds
+          })
+        });
+
+        // 角色列表变了，重新拉取并选中刚建好的那个
+        state.roles = null;
+        await loadRoles();
+        var created = state.roles.filter(function (r) { return r.code === code; })[0];
+
+        closeRoleDialog();
+        await selectRole(created ? created.id : state.currentRoleId);
+        setStatus('角色已新增' + (permissionIds.length ? '，已分配 ' + permissionIds.length + ' 个权限点' : ''), 'ok');
+      } catch (err) {
+        setStatus('新增角色失败：' + errText(err), 'err');
+      } finally {
+        btnRoleOk.disabled = false;
+      }
+    }
+    /* ---------- 交互 ---------- */
+
+    document.querySelector('.tabs').addEventListener('click', async function (e) {
+      var tab = e.target.closest('.tab');
+      if (!tab) {
+        return;
+      }
+
+      state.tab = tab.dataset.tab;
+      var tabs = document.querySelectorAll('.tab');
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].classList.toggle('active', tabs[i] === tab);
+      }
+
+      paneEmployee.classList.toggle('hidden', state.tab !== 'employee');
+      paneRole.classList.toggle('hidden', state.tab !== 'role');
+      btnSave.classList.toggle('hidden', state.tab !== 'role');
+
+      if (state.tab === 'employee') {
+        setStatus('共 ' + state.total + ' 名员工');
+        return;
+      }
+
+      try {
+        await loadRoles();
+        if (!state.perms) {
+          state.perms = await api(API_PERM_LIST);
+        }
+        renderRoleSide();
+        if (state.currentRoleId) {
+          await selectRole(state.currentRoleId);
+        } else {
+          permMain.innerHTML = '';
+          setStatus('请选择左侧角色');
+        }
+      } catch (err) {
+        setStatus('加载失败：' + errText(err), 'err');
+      }
+    });
+
+    empBody.addEventListener('click', async function (e) {
+      var op = e.target.closest('.op');
+      if (!op) {
+        return;
+      }
+
+      var id = Number(op.dataset.id);
+      if (op.dataset.act === 'edit') {
+        await openDialog(findEmployee(id));
+        return;
+      }
+
+      var status = op.dataset.act === 'enable' ? 1 : 0;
+      try {
+        await api(API_EMP_STATUS + status + '?id=' + id, { method: 'POST' });
+        await loadEmployees();
+        setStatus(status === 1 ? '已启用' : '已禁用', 'ok');
+      } catch (err) {
+        setStatus('操作失败：' + errText(err), 'err');
+      }
+    });
+
+    document.getElementById('btnSearch').addEventListener('click', async function () {
+      state.keyword = document.getElementById('kw').value.trim();
+      state.page = 1;
+      try {
+        await loadEmployees();
+        setStatus('共 ' + state.total + ' 名员工');
+      } catch (err) {
+        setStatus('查询失败：' + errText(err), 'err');
+      }
+    });
+
+    document.getElementById('kw').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        document.getElementById('btnSearch').click();
+      }
+    });
+
+    document.getElementById('btnAdd').addEventListener('click', function () {
+      openDialog(null);
+    });
+
+    document.getElementById('btnCancel').addEventListener('click', closeDialog);
+    btnOk.addEventListener('click', submitDialog);
+
+    btnPrev.addEventListener('click', async function () {
+      if (state.page > 1) {
+        state.page--;
+        await loadEmployees();
+      }
+    });
+
+    btnNext.addEventListener('click', async function () {
+      state.page++;
+      await loadEmployees();
+    });
+
+    btnSave.addEventListener('click', savePermissions);
+
+    roleSide.addEventListener('click', function (e) {
+      var item = e.target.closest('.side-item');
+      if (item) {
+        selectRole(Number(item.dataset.id));
+      }
+    });
+
+    // 勾选权限：支持单点、整组全选，并同步组头的勾选态
+    function onPermChange(container, store) {
+      return function (e) {
+        var el = e.target;
+        if (el.type !== 'checkbox') {
+          return;
+        }
+
+        var groups = buildGroups();
+
+        if (el.dataset.all) {
+          var group = groups.filter(function (g) { return g.prefix === el.dataset.all; })[0];
+          if (group) {
+            group.items.forEach(function (it) {
+              if (el.checked) {
+                store[it.id] = true;
+              } else {
+                delete store[it.id];
+              }
+            });
+          }
+          container.innerHTML = permsHtml(store);
+          return;
+        }
+
+        var id = Number(el.dataset.id);
+        if (el.checked) {
+          store[id] = true;
+        } else {
+          delete store[id];
+        }
+
+        var box = el.closest('.group');
+        if (box) {
+          var group2 = groups.filter(function (g) { return g.prefix === box.dataset.group; })[0];
+          var head = box.querySelector('.group-head input');
+          if (group2 && head) {
+            head.checked = group2.items.every(function (it) { return store[it.id]; });
+          }
+        }
+      };
+    }
+
+    permMain.addEventListener('change', onPermChange(permMain, state.checked));
+    rolePermBox.addEventListener('change', onPermChange(rolePermBox, state.newRoleChecked));
+
+    document.getElementById('btnAddRole').addEventListener('click', openRoleDialog);
+    document.getElementById('btnRoleCancel').addEventListener('click', closeRoleDialog);
+    btnRoleOk.addEventListener('click', submitRoleDialog);
+    /* ---------- 启动 ---------- */
+
+    (async function init() {
+      try {
+        await loadEmployees();
+        setStatus('共 ' + state.total + ' 名员工');
+      } catch (err) {
+        setStatus('加载失败：' + errText(err), 'err');
+      }
+    })();
+
+  })();
+  </script>
+</body>
+</html>
