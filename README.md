@@ -1,286 +1,229 @@
-# 智能外卖平台 · 前端
+# 智能外卖平台（历史版本归档）
 
-「智能外卖平台」的**前端静态资源 + Nginx 配置**，包含管理端后台与 AI 助手页面。
+这是「智能外卖平台」的前后端历史归档仓库。项目以管理端业务为主，包含员工、分类、菜品、套餐、订单、统计、角色权限、WebSocket 来单提醒，以及基于 LangChain4j + 通义千问的 AI 助手。
 
-> 这是前端仓库，后端服务在 👉 [sky-take-out](https://github.com/tlei49377-afk/sky-take-out)
+> 本仓库用于保留课程学习和项目演进中的旧版本，不代表当前正式项目。当前校园食堂预约项目「海韵食刻」位于 [haiyun-campus-meal](https://github.com/tlei49377-afk/haiyun-campus-meal)。
 
----
+## 归档说明
 
-## 目录
+- 分支：`archive/smart-takeout-platform`
+- 前端：原 `html/sky` 下的 Vue 2 + Element UI 编译产物，保留原目录结构，不伪装成可维护源码。
+- 后端：原 `sky-take-out` 多模块 Maven 工程，归档在 `backend/`。
+- 数据库：`backend/db/sky_take_out.sql`。
+- 原前端仓库的 `main` 分支和历史保持不变；本归档使用独立分支。
+- 为安全起见，归档不会提交 `application-dev.yml`、私钥、证书和本地环境变量。
 
-- [项目说明](#项目说明)
-- [目录结构](#目录结构)
-- [环境要求](#环境要求)
-- [快速开始](#快速开始)
-- [配置说明](#配置说明)
-- [功能页面](#功能页面)
-- [常见问题](#常见问题)
+## 功能概览
 
----
+管理端包含：
 
-## 项目说明
+- 员工管理、角色与权限管理
+- 菜品分类与套餐分类管理
+- 菜品、口味、套餐和图片上传
+- 订单查询、接单、拒单、派送、完成与统计
+- 营业额、用户、订单和销量排行统计
+- 店铺营业状态、来单语音提醒
+- 基于通义千问的 AI 助手，可查询业务数据并执行受控的菜品操作
 
-本仓库是**编译后的前端产物**（Vue 2 + Element UI），不含前端源码，配合 Nginx 部署使用。
+原版本的微信小程序用户端不在本仓库内；本仓库保留的是后台管理端静态页面和对应后端。微信登录、微信支付、阿里云 OSS、百度地图和 AI 能力需要接入真实第三方配置后才能完整使用。
 
-仓库同时提供了配套的 `conf/nginx.conf`，其中已经写好了**静态资源托管**和**接口反向代理**规则，克隆后可直接使用。
+## 技术栈
 
-### 前后端如何配合
-
-```
-浏览器
-  │
-  ├─ /            → Nginx 返回静态页面（本仓库的 html/sky）
-  │
-  ├─ /api/xxx     → Nginx 转发到 后端 /admin/xxx   （管理端接口）
-  ├─ /user/xxx    → Nginx 转发到 后端 /user/xxx    （用户端接口）
-  └─ /ws/xxx      → Nginx 转发到 后端 WebSocket    （来单提醒）
-```
-
-> **重要**：Nginx 的 `/api/` 会被转发到后端的 `/admin/`，因此后端管理端接口路径都带 `/admin` 前缀。
-
----
+| 层次 | 技术 |
+|---|---|
+| 后端 | Java 17、Spring Boot 3.5、MyBatis、PageHelper、Druid |
+| 数据库与缓存 | MySQL 8、Redis |
+| 鉴权与文档 | JWT、自定义权限注解 + AOP、Knife4j / OpenAPI 3 |
+| 实时与报表 | WebSocket、Apache POI |
+| AI | LangChain4j、通义千问（DashScope OpenAI 兼容接口） |
+| 前端 | Vue 2 + Element UI 编译产物、Nginx |
+| 外部服务 | 阿里云 OSS、微信支付、百度地图 |
 
 ## 目录结构
 
-```
-sky-take-out-frontend
-├── README.md
+```text
+sky-take-out-frontend/
+├── backend/
+│   ├── db/                    数据库建表和初始化脚本
+│   ├── sky-common/            公共模块
+│   ├── sky-pojo/              Entity、DTO、VO
+│   ├── sky-server/            Controller、Service、Mapper、Task、Config
+│   ├── pom.xml
+│   └── README.md              后端详细说明
 ├── conf/
-│   └── nginx.conf           Nginx 配置（静态资源 + 接口代理 + WebSocket）
-└── html/
-    └── sky/                 前端应用
-        ├── index.html       入口页面
-        ├── ai-chat.html     AI 助手聊天页（手写单文件）
-        ├── employee.html    员工与权限页（手写单文件）
-        ├── rbac.html        角色权限页（手写单文件，入口已并入员工与权限页）
-        ├── favicon.ico
-        ├── css/             样式
-        ├── js/              JavaScript
-        ├── img/             图片资源
-        ├── fonts/           图标字体
-        └── media/           音频（来单提醒）
+│   └── nginx.conf             静态资源托管和接口反向代理
+├── html/
+│   └── sky/                   管理端编译产物
+│       ├── index.html         管理端入口
+│       ├── ai-chat.html       AI 助手
+│       ├── employee.html      员工与权限
+│       └── rbac.html          角色权限
+└── README.md
 ```
-
----
 
 ## 环境要求
 
-| 组件 | 版本 | 说明 |
+| 组件 | 建议版本 | 用途 |
 |---|---|---|
-| Nginx | 1.20+ | 托管静态资源并反向代理 |
-| 后端服务 | — | 需先启动，默认 `localhost:8080` |
-| 浏览器 | 现代浏览器 | 推荐 Chrome |
+| JDK | 17 或 21 | 后端运行 |
+| Maven | 3.8+ | 后端构建 |
+| MySQL | 8.0+ | 业务数据 |
+| Redis | 6.0+ | 登录会话、缓存和 AI 会话 |
+| Nginx | 1.20+ | 前端静态资源与接口代理 |
+| 通义千问 API Key | - | AI 助手，启动前必须配置 |
 
-**无需 Node.js / npm** —— 这是编译后的产物，不需要构建。
+> `application.yml` 中 AI 自动配置会在启动阶段读取 `QW-API-KEY`，缺少时应用可能直接启动失败，即使暂时不使用 AI 页面也需要设置。
 
----
+## 本地启动
 
-## 快速开始
+### 1. 克隆归档分支
 
-### 第 1 步：启动后端
+```powershell
+git clone -b archive/smart-takeout-platform https://github.com/tlei49377-afk/sky-take-out-frontend.git
+cd sky-take-out-frontend
+```
 
-先确保后端服务已运行在 `8080` 端口。
+### 2. 初始化数据库
 
-```bash
-# 在 sky-take-out 后端仓库中
+先启动 MySQL，然后执行：
+
+```powershell
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS sky_take_out DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql --default-character-set=utf8mb4 -u root -p sky_take_out -e "source backend/db/sky_take_out.sql"
+```
+
+也可以在 MySQL Workbench 中新建 `sky_take_out` 数据库，再导入 `backend/db/sky_take_out.sql`。
+
+### 3. 创建后端本地配置
+
+```powershell
+Copy-Item backend/sky-server/src/main/resources/application-dev.yml.example `
+  backend/sky-server/src/main/resources/application-dev.yml
+```
+
+打开复制后的 `application-dev.yml`，至少修改以下配置：
+
+- MySQL 地址、数据库名、用户名和密码
+- Redis 地址、端口、密码和 database
+- JWT 管理端与用户端密钥（使用两段不同的随机字符串）
+- 需要上传图片时填写阿里云 OSS 配置
+- 需要真实微信登录或支付时填写微信配置
+- 需要地址距离校验时填写百度地图 AK
+
+这个文件已经被 `.gitignore` 忽略，请勿提交真实值。
+
+Redis 有两套用途：业务缓存使用 `sky.redis.*`，AI 社区版 Redis 配置位于 `backend/sky-server/src/main/resources/application.yml` 的 `langchain4j.community.redis.*`。默认端口不同，请根据本机 Redis 实际监听端口调整。
+
+### 4. 设置 AI Key
+
+PowerShell：
+
+```powershell
+${env:QW-API-KEY} = "你的 DashScope API Key"
+```
+
+CMD：
+
+```bat
+set "QW-API-KEY=你的 DashScope API Key"
+```
+
+IDEA：在 `Run/Debug Configurations` 的 `Environment variables` 中添加 `QW-API-KEY=你的 Key`。
+
+### 5. 构建并启动后端
+
+```powershell
+cd backend
 mvn clean package -DskipTests
 java -jar sky-server/target/sky-server-1.0-SNAPSHOT.jar
 ```
 
-看到控制台输出 `server started` 即成功。
+默认地址：
 
-> 后端启动前需要配置好 MySQL、Redis 和 AI 密钥（`QW-API-KEY`），详见 [后端仓库说明](https://github.com/tlei49377-afk/sky-take-out)。
+- 后端：`http://localhost:8080`
+- 接口文档：`http://localhost:8080/doc.html`
+- 健康检查：`http://localhost:8080/actuator/health`
 
-### 第 2 步：部署前端到 Nginx
+健康检查显示数据库或 Redis 不可用时，先修复对应连接再登录。
 
-**方式 A：替换 Nginx 自带目录（推荐）**
+### 6. 启动前端
 
-下载并解压 Nginx，然后把本仓库的文件复制进去：
+安装 Nginx 后，在本仓库根目录执行：
 
-```bash
-# 假设 nginx 解压在 D:\nginx-1.20.2
-cp -r conf/nginx.conf   D:/nginx-1.20.2/conf/nginx.conf
-cp -r html/*            D:/nginx-1.20.2/html/
+```powershell
+$root = (Get-Location).Path
+nginx -p "$root/" -c conf/nginx.conf
 ```
 
-**方式 B：直接用本仓库目录作为 Nginx 根目录**
+浏览器访问 `http://localhost`。
 
-把 Nginx 解压到本仓库同级目录，然后修改 `conf/nginx.conf` 中的相对路径即可（`root html/sky` 相对于 Nginx 安装目录）。
+初始管理员账号来自数据库脚本：
 
-### 第 3 步：启动 Nginx
+- 用户名：`admin`
+- 密码：`123456`
 
-```bash
-# Windows
-cd D:/nginx-1.20.2
-start nginx
+修改 Nginx 配置后重载：
 
-# Linux / macOS
-nginx -c /path/to/conf/nginx.conf
+```powershell
+nginx -s reload
 ```
 
-浏览器访问 **http://localhost** 即可看到登录页。
+停止 Nginx：
 
-**默认管理员账号**：`admin` / `123456`（取决于后端数据库中的员工数据，其余内置示例账号见后端仓库 README）
-
----
-
-## 配置说明
-
-### 修改后端地址
-
-如果后端不在本机 `8080`，编辑 `conf/nginx.conf`：
-
-```nginx
-location /api/ {
-    proxy_pass http://后端IP:端口/admin/;    # 修改这里
-}
-
-location /user/ {
-    proxy_pass http://后端IP:端口/user/;     # 修改这里
-}
-
-location /ws/ {
-    proxy_pass http://后端IP:端口/ws/;       # 修改这里
-}
+```powershell
+nginx -s stop
 ```
 
-### 完整配置参考
+如果 80 端口被占用，把 `conf/nginx.conf` 中的 `listen 80;` 改成其他端口，例如 `listen 8081;`。
 
-```nginx
-worker_processes  1;
+## 接口代理关系
 
-events {
-    worker_connections  1024;
-}
-
-http {
-    include       mime.types;
-    default_type  application/octet-stream;
-    sendfile      on;
-    keepalive_timeout  65;
-
-    # WebSocket 升级支持（来单提醒需要）
-    map $http_upgrade $connection_upgrade {
-        default upgrade;
-        ''      close;
-    }
-
-    upstream webservers {
-        server 127.0.0.1:8080 weight=90;
-    }
-
-    server {
-        listen       80;
-        server_name  localhost;
-
-        # 静态资源
-        location / {
-            root   html/sky;
-            index  index.html index.htm;
-        }
-
-        # 管理端接口：/api/xxx -> 后端 /admin/xxx
-        location /api/ {
-            proxy_pass   http://localhost:8080/admin/;
-        }
-
-        # 用户端接口
-        location /user/ {
-            proxy_pass   http://webservers/user/;
-        }
-
-        # WebSocket 来单提醒
-        location /ws/ {
-            proxy_pass   http://webservers/ws/;
-            proxy_http_version 1.1;
-            proxy_read_timeout 3600s;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "$connection_upgrade";
-        }
-
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
-    }
-}
+```text
+浏览器
+  ├── /            -> Nginx 返回 html/sky 静态页面
+  ├── /api/*       -> 后端 http://localhost:8080/admin/*
+  ├── /user/*      -> 后端 http://localhost:8080/user/*
+  └── /ws/*        -> 后端 WebSocket
 ```
 
----
-
-## 功能页面
-
-### 管理端
-
-| 页面 | 说明 |
-|---|---|
-| 登录 | 员工账号登录 |
-| 工作台 | 今日营业额、订单、用户等概览 |
-| 数据统计 | 营业额 / 用户 / 订单统计、销量排名 Top10 |
-| 订单管理 | 订单搜索、接单拒单、派送完成 |
-| 套餐管理 | 套餐增删改查 |
-| 菜品管理 | 菜品增删改查、起售停售 |
-| 分类管理 | 菜品分类与套餐分类管理 |
-| 员工与权限 | 员工增删改查、启用禁用、登录密码设置、角色分配；角色权限页签可新增自定义角色并勾选权限 |
-| **AI 助手** | **自然语言查询菜品、分类、订单** |
-
-### 用户端
-
-菜品浏览、购物车、下单支付、历史订单等。
-
-### 员工与权限
-
-左侧菜单「**员工管理**」，页面分两个页签：
-
-- **员工管理**：新增 / 编辑员工时可设置登录密码（留空则新增用默认 `123456`、编辑表示不改），并可勾选所属角色；支持启用禁用、按姓名或用户名搜索、分页。
-- **角色权限**：左侧选角色、右侧勾权限，支持整组全选；「新增角色」可创建自定义角色，创建时就能勾好权限（角色编码、角色名称为必填项）。
-
-保存后，该角色下员工**无需重新登录**，下一次请求即按新权限校验。超级管理员的角色与资料不允许被他人改动，也不能被禁用。
-
-### AI 助手
-
-左侧菜单**最底部**「AI 助手」，进入后可用自然语言提问，例如：
-
-- 「汤类有哪些菜」
-- 「查询鸡蛋汤的价格」
-- 「查询手机号 13655220337 的订单」
-- 「有哪些分类」
-
-AI 会调用后端工具查询**真实数据**后回答，不会编造。支持多轮对话（后端用 Redis 保存会话记忆），点击「新建会话」可清空上下文。
-
----
+如果后端不在 `localhost:8080`，修改 `conf/nginx.conf` 中 `proxy_pass` 的地址。
 
 ## 常见问题
 
-### 页面能打开，但接口全部报错
+### 后端启动时报 `Could not resolve placeholder 'QW-API-KEY'`
 
-1. 确认后端已启动：浏览器访问 `http://localhost:8080/doc.html`，能打开接口文档说明后端正常
-2. 确认 Nginx 配置中的 `proxy_pass` 地址与端口正确
-3. 修改 `nginx.conf` 后需要**重载 Nginx**：
-   ```bash
-   nginx -s reload
-   ```
+没有设置通义千问 API Key。按“设置 AI Key”步骤配置后重新启动。
 
-### 修改了文件但页面没变化
+### 登录后立即返回登录页 / 提示 401
 
-浏览器缓存导致，按 **Ctrl + F5** 强制刷新。
+优先检查 Redis 是否启动、密码和 database 是否正确，以及后端日志中是否有连接异常。
 
-### 菜单里没有「AI 助手」
+### 页面能打开但接口报 502
 
-确认后端已启动且 `application.yml` 中的 AI 配置正确（需要设置 `QW-API-KEY` 环境变量）。
+检查后端是否运行在 `8080`，以及 Nginx 的 `proxy_pass` 地址是否正确。
 
-### 登录提示 401 / 一直跳回登录页
+### 图片上传失败
 
-后端 Redis 未启动或连接失败。检查后端的 Redis 配置（`application-dev.yml` 中的 `sky.redis.*`）。
+检查阿里云 OSS 的 endpoint、AccessKey、Bucket 和跨域配置。没有 OSS 配置时不影响页面打开，但上传功能不可用。
 
-### 端口 80 被占用
+### 微信支付或登录不可用
 
-修改 `conf/nginx.conf` 中的 `listen 80;` 为其他端口，例如 `listen 8081;`，然后访问 `http://localhost:8081`。
+归档配置只提供占位符。微信登录、支付和回调需要真实 AppID、商户号、API v3 Key、证书及可被微信访问的回调地址，不能仅靠本地示例配置完成。
 
----
+### 修改代码后页面没有变化
 
-## 关联项目
+该前端是编译产物，修改 `html/sky` 下的内容后需要重启或重载 Nginx，并强制刷新浏览器缓存。若需要维护前端源码，应回到原前端工程，而不是直接修改压缩后的 JS。
 
-| 项目 | 说明 |
-|---|---|
-| [sky-take-out](https://github.com/tlei49377-afk/sky-take-out) | 后端服务（Spring Boot 3 + LangChain4j） |
+## 安全说明
+
+- 不要把 `application-dev.yml`、`.env`、私钥、证书或真实 API Key 提交到 Git。
+- 如果某个密钥曾经出现在公开提交、截图或历史仓库中，应立即在对应平台轮换并作废旧密钥。
+- 本归档只用于学习和演示。部署到公网前应更换默认密码、JWT 密钥，并限制 Actuator 和接口文档的访问范围。
+- 第三方支付、短信、地图、OSS 和 AI 服务会产生真实费用，请设置配额和告警。
+
+## 与当前项目的关系
+
+本仓库是旧「智能外卖平台」的技术归档。当前「海韵食刻」已经重构为校园食堂预约取餐系统，使用新的前后端代码和业务模型：
+
+- 当前项目：[haiyun-campus-meal](https://github.com/tlei49377-afk/haiyun-campus-meal)
+- 本归档：保留旧平台前后端、页面和运行说明，便于回顾技术演进
