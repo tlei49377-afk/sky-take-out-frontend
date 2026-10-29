@@ -7,15 +7,30 @@
 ## 页面预览
 
 <details>
-<summary><strong>展开查看实际页面截图</strong></summary>
+<summary><strong>展开查看全部页面截图（每行两张）</strong></summary>
 
-### 管理端登录
-
-![智能外卖平台管理端登录页](docs/screenshots/admin-login.png)
-
-### AI 助手
-
-![智能外卖平台 AI 助手页面](docs/screenshots/ai-assistant.png)
+<table>
+  <tr>
+    <td width="50%" align="center"><strong>管理端登录</strong><br><img src="docs/screenshots/01-admin-login.png" alt="管理端登录"></td>
+    <td width="50%" align="center"><strong>工作台</strong><br><img src="docs/screenshots/02-dashboard.png" alt="工作台"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><strong>数据统计</strong><br><img src="docs/screenshots/03-statistics.png" alt="数据统计"></td>
+    <td width="50%" align="center"><strong>订单管理</strong><br><img src="docs/screenshots/04-orders.png" alt="订单管理"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><strong>套餐管理</strong><br><img src="docs/screenshots/05-setmeals.png" alt="套餐管理"></td>
+    <td width="50%" align="center"><strong>菜品管理</strong><br><img src="docs/screenshots/06-dishes.png" alt="菜品管理"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><strong>分类管理</strong><br><img src="docs/screenshots/07-categories.png" alt="分类管理"></td>
+    <td width="50%" align="center"><strong>员工管理</strong><br><img src="docs/screenshots/08-employees.png" alt="员工管理"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><strong>角色权限</strong><br><img src="docs/screenshots/10-role-permissions.png" alt="角色权限"></td>
+    <td width="50%" align="center"><strong>AI 助手</strong><br><img src="docs/screenshots/09-ai-assistant.png" alt="AI 助手"></td>
+  </tr>
+</table>
 
 </details>
 
@@ -35,7 +50,9 @@
 ```text
 sky-take-out-frontend/
 ├── backend/                   后端 Maven 多模块工程
-│   ├── db/                    数据库脚本
+│   ├── db/
+│   │   ├── sky_take_out.sql   完整数据库初始化脚本
+│   │   └── demo_data.sql      可重复导入的演示数据
 │   ├── sky-common/            公共模块
 │   ├── sky-pojo/              Entity、DTO、VO
 │   ├── sky-server/            Controller、Service、Mapper、Task
@@ -105,6 +122,16 @@ mysql --default-character-set=utf8mb4 -u root -p sky_take_out -e "source backend
 ```
 
 也可以使用 MySQL Workbench：新建 `sky_take_out` 数据库，再导入 `backend/db/sky_take_out.sql`。
+
+推荐继续导入演示数据，用于展示工作台、统计图表、订单、套餐和用户趋势：
+
+```powershell
+mysql --default-character-set=utf8mb4 -u root -p sky_take_out -e "source backend/db/demo_data.sql"
+```
+
+`demo_data.sql` 只会维护固定的演示 ID 范围，可重复执行，不会清空普通业务数据。
+
+演示数据包含 12 位顾客、21 笔不同状态的订单、4 个新增套餐，并补充用户趋势、订单统计和销量排行所需数据；原有 25 道菜、10 个分类和 7 名员工继续保留。
 
 ### 4. 创建后端本地配置
 
