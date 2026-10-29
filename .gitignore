@@ -1,6 +1,23 @@
-# Source map：体积大（约 10MB），部署时浏览器不会请求
+# Source map：体积大，部署时浏览器不会请求
 # 注意：本地请保留源目录中的 .map 文件，它们含有原始 Vue 源码
 *.map
+
+# 前端构建与依赖目录（当前归档分支不需要提交）
+/dist/
+/node_modules/
+
+# 后端构建产物和 IDE 文件
+backend/**/target/
+backend/**/.idea/
+backend/**/*.iml
+
+# 本地环境配置与证书
+backend/**/application-dev.yml
+backend/**/application-local.yml
+backend/**/.env
+backend/**/*.pem
+backend/**/*.p12
+backend/**/*.key
 
 # Nginx 运行时产物
 logs/

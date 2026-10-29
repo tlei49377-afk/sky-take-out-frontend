@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.sky.mapper.PermissionMapper">
+    <select id="listCodesByEmployeeId" resultType="java.lang.String">
+        select distinct p.code
+        from employee_role er
+        join role_permission rp on rp.role_id = er.role_id
+        join permission p on p.id = rp.permission_id
+        where er.employee_id = #{employeeId}
+    </select>
+
+    <select id="list" resultType="com.sky.entity.Permission">
+        select * from permission order by id
+    </select>
+</mapper>

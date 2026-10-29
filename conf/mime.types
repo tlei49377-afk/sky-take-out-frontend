@@ -1,0 +1,13 @@
+types {
+    text/html                             html htm shtml;
+    text/css                              css;
+    application/javascript                js;
+    application/json                      json;
+    image/png                             png;
+    image/x-icon                          ico;
+    image/svg+xml                         svg;
+    font/woff                             woff;
+    font/ttf                              ttf;
+    audio/mpeg                            mp3;
+    application/octet-stream              bin;
+}

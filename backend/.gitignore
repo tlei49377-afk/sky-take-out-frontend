@@ -1,0 +1,9 @@
+**/target/
+.idea
+*.iml
+*.class
+
+# 本地环境配置：含数据库/OSS/微信等敏感信息，不入库
+application-dev.yml
+application-local.yml
+.env
